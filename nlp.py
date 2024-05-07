@@ -1,7 +1,6 @@
 import re
 import unicodedata
-import matplotlib.pyplot as plt
-from tabulate import tabulate
+
 import numpy as np
 import pandas as pd
 import streamlit as st
