@@ -16,8 +16,8 @@ To use the application, select the desired functionality from the dropdown menu.
 
 ## Screenshots
 
-![Screenshot 1](nlp_streamlit/Screenshot 2024-05-07 053544.png)
-![Screenshot 2](nlp_streamlit/Screenshot 2024-05-07 061958.png)
+![Screenshot 1](<Screenshot 2024-05-07 053544.png>)
+![Screenshot 2](<Screenshot 2024-05-07 061958.png>)
 
 ## Installation
 
