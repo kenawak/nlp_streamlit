@@ -1,0 +1,5 @@
+tabulate
+numpy
+pandas
+streamlit
+plotly
