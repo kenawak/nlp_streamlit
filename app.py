@@ -77,14 +77,14 @@ if selected == "Stemming":
     st.dataframe(stemmed_df)
 
 if selected == "Text Statistics":
-    text_stats = TextStatistics()
-    # tokenized_text = text_stats.get_statistics(content)
-    word_freq = text_stats.calc_frequency(tokenizer.tokenize(content))
-    word_freq = text_stats.rank_words(word_freq)
+    # Calculate the frequency of each word in the text
+    word_freq = stats.calc_frequency(tokenizer.tokenize(content))
+    stats.tabular_format(word_freq)
+
     # word_freq = text_stats.product_freq_rank(word_freq)
 
-    # Display in tabular format and plot the bar chart
-    text_stats.tabular_format(word_freq)
+    word_freq = stats.rank_words(word_freq)
 
     # Plot the rank-frequency graph
-    text_stats.freq_rank_graph(word_freq)
+    
+    stats.freq_rank_graph(word_freq)

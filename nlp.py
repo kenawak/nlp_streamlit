@@ -317,21 +317,38 @@ class TextStatistics:
             words[i].append(product_rank_freq)
         return words
 
-        
-    
     def tabular_format(self, words):
-        headers = ['Word', 'Frequency', 'Rank', 'Product']
-        st.write(tabulate(words, headers=headers))
+        # Create a DataFrame
+        df = pd.DataFrame(words, columns=['Word', 'Frequency'])
+        # Display the DataFrame in Streamlit
+        st.dataframe(df)
 
+    # Continue with the rest of your code...
         # Bar chart for word frequencies
         words, frequencies = zip(*[[pair[0], pair[1]] for pair in words])
         df = pd.DataFrame({'words': words, 'frequencies': frequencies})
-        plt.figure(figsize=(10, 5))
-        plt.bar(df['words'], df['frequencies'])
-        plt.xlabel('Words')
-        plt.ylabel('Frequencies')
-        plt.title('Word Frequencies')
-        st.pyplot(plt)
+
+        fig = go.Figure(data=[
+            go.Bar(name='Words', x=df['words'], y=df['frequencies'], marker_color='indianred'),
+        ])
+
+        fig.update_layout(
+            title='Word Frequencies',
+            xaxis=dict(
+                title='Words',
+                gridcolor='white',
+                gridwidth=2,
+            ),
+            yaxis=dict(
+                title='Frequencies',
+                gridcolor='white',
+                gridwidth=2,
+            ),
+            paper_bgcolor='rgb(0, 0, 0)',
+            plot_bgcolor='rgb(0, 0, 0)',
+        )
+
+        st.plotly_chart(fig)
 
     def freq_rank_graph(self, words):
         ranks = [pair[2] for pair in words]
@@ -339,15 +356,30 @@ class TextStatistics:
 
         # Log-log plot for rank-frequency graph
         df = pd.DataFrame({'ranks': ranks, 'frequencies': frequencies})
-        plt.figure(figsize=(10, 5))
-        plt.plot(df['ranks'], df['frequencies'])
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.xlabel('Ranks')
-        plt.ylabel('Frequencies')
-        plt.title('Rank-Frequency Graph')
-        st.pyplot(plt)
 
+        fig = go.Figure(data=[
+            go.Scatter(name='Rank-Frequency', x=df['ranks'], y=df['frequencies'], mode='lines+markers'),
+        ])
+
+        fig.update_layout(
+            title='Rank-Frequency Graph',
+            xaxis=dict(
+                title='Ranks',
+                type='log',
+                gridcolor='white',
+                gridwidth=2,
+            ),
+            yaxis=dict(
+                title='Frequencies',
+                type='log',
+                gridcolor='white',
+                gridwidth=2,
+            ),
+            paper_bgcolor='rgb(0, 0, 0)',
+            plot_bgcolor='rgb(0, 0, 0)',
+        )
+
+        st.plotly_chart(fig)
 class Pipeline:
     """
     Text Preprocessing Pipeline
