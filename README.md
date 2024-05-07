@@ -16,7 +16,7 @@ Select the desired functionality from the dropdown menu. The application will pe
 
 ## Screenshots
 
-![Screenshot 1](Screenshot 2024-05-07 053544.png)
+![Screenshot 1](<Screenshot 2024-05-07 053544.png>)
 ![Screenshot 2](nlp_streamlit/<screenshot_filename_2>)
 
 ## Installation
