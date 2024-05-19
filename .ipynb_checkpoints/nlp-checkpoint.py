@@ -1,6 +1,6 @@
 import re
 import unicodedata
-import uuid
+
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -435,77 +435,29 @@ class Pipeline:
         
         preprocessed_text = stemmed_tokens
         return preprocessed_text
+# pipeline = Pipeline()
+# preprocessed_content = pipeline.preprocess(content)
 
-import json
-def create_inverted_index_from_files(file_paths):
+def create_inverted_index(text):
     pipeline = Pipeline()
+    documents = text.split('\n') # Here we can use the docuemnts instead
+
+    inverted_index = defaultdict(list)
+    doc_id = 0
+
+    for document in documents:
+        preprocessed_document = pipeline.preprocess(document)
+        for term in preprocessed_document:
+            inverted_index[term].append(doc_id)
+        doc_id += 1
     
-    inverted_index = defaultdict(lambda: {"doc_count": 0, "term_freq": 0, "doc_ids": set()})
-    all_chunks = {}
+    return inverted_index
+def print_inverted_index(inverted_index):
+    for word, doc_ids in inverted_index.items():
+        print(f"{word}: {sorted(doc_ids)}")
 
-    # Iterate over all specified file paths
-    for file_path in file_paths:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            document = file.read()
-            doc_id = str(uuid.uuid4())
-            preprocessed_document = pipeline.process(document)
-            
-            for term in preprocessed_document:
-                if term == "":
-                    continue
-                inverted_index[term]["doc_ids"].add(doc_id)  # Use a set to avoid duplicates
-                inverted_index[term]["term_freq"] += 1  # Increment term frequency across all documents
-            
-            file_name = file_path.split('/')[-1]  # Extract the file name from the path
-            all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name}
+# Process the corpus and create the inverted index
+inverted_index = create_inverted_index(content)
 
-    # Convert sets to lists for JSON serialization
-    for term in inverted_index:
-        inverted_index[term]["doc_count"] = len(inverted_index[term]["doc_ids"])
-        inverted_index[term]["doc_ids"] = list(inverted_index[term]["doc_ids"])
-
-    return inverted_index, all_chunks    
-
-class InvertedIndex:
-    def __init__(self):
-        pass
-    
-    def process(self, files):
-        inverted_index, doc_pointers = create_inverted_index_from_files(files)
-        
-        # Save the vocabulary in JSON format
-        vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(vocab_file_path, 'w') as vocab_file:
-            json.dump(vocab_data, vocab_file, indent=4)
-        print(f"Vocabulary saved to {vocab_file_path}")
-        
-         # Save the vocabulary in JSON format
-        vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(vocab_file_path, 'w') as vocab_file:
-            json.dump(vocab_data, vocab_file, indent=4)
-        print(f"Vocabulary saved to {vocab_file_path}")
-        
-        # Save the postings in JSON format
-        postings_file_path = 'postings.json'
-        postings_data = {term: {"doc_ids": data["doc_ids"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(postings_file_path, 'w') as postings_file:
-            json.dump(postings_data, postings_file, indent=4)
-        print(f"Postings saved to {postings_file_path}")
-        
-
-
-# # Example usage
-# file_paths = [
-#     'corpus1.txt',  # Change these paths to the actual paths of your text files
-#     'corpus2.txt',
-#     'corpus3.txt',
-#     'corpus4.txt',        
-# ]
-
-# indexer = InvertedIndex()
-# indexer.process(file_paths)
+# Print the inverted index
+print_inverted_index(inverted_index)
