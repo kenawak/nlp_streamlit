@@ -19,30 +19,37 @@ st.title("Afan Oromo Text Preprocessing App")
 
 
 # Create a form
+if 'content' not in st.session_state:
+    st.session_state['content'] = ""
+if 'file_names' not in st.session_state:
+    st.session_state['file_names'] = []
+
 with st.form(key='my_form'):
     # Create a file uploader for multiple files
     files = st.file_uploader("Choose files", accept_multiple_files=True, type=['txt'])
     submitted = st.form_submit_button("Submit")
 
+if submitted and files:
+    # Read the content of all uploaded files
+    file_names = []
+    content = []
+    for file in files:
+        file_content = file.read().decode()
+        content.append(file_content)
+        file_names.append(file.name)
+    st.session_state['content'] = "\n".join(content)
+    st.session_state['file_names'] = file_names
 selected = option_menu(
     menu_title=None,
     options=["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index"],
     icons=["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book"],
     orientation="vertical",
 )
-
-if submitted and files:
-    # Read the content of all uploaded files
-    content = []
-    file_names = []
-    for file in files:
-        file_content = file.read().decode()
-        content.append(file_content)
-        file_names.append(file.name)
-    content = "\n".join(content)  # Combine content for processing
+content = st.session_state['content']
+file_names = st.session_state['file_names']
 
 if selected == "Tokenize":
-    if not submitted:
+    if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         tokenized_text = tokenizer.tokenize(content)
@@ -62,7 +69,7 @@ if selected == "Tokenize":
         )
 
 if selected == "Remove Stopwords":
-    if not submitted:
+    if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         removed_stopwords = stopword_remover.get_stopwords(tokenizer.tokenize(content))
@@ -78,7 +85,7 @@ if selected == "Remove Stopwords":
         )
 
 if selected == "Stemming":
-    if not submitted:
+    if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         tokens = tokenizer.tokenize(content)
@@ -92,7 +99,7 @@ if selected == "Stemming":
         st.dataframe(stemmed_df)
 
 if selected == "Text Statistics":
-    if not submitted:
+    if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         # Calculate the frequency of each word in the text
@@ -127,7 +134,7 @@ def create_inverted_index_from_content(contents, file_names):
     return inverted_index, all_chunks
 
 if selected == "Create Inverted Index":
-    if not submitted:
+    if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         # Create the inverted index from the uploaded files
