@@ -1,18 +1,14 @@
 {
     "corpus1.txt": {
-        "document_id": "af93a4a8-4f4c-4657-b262-cde521826f43",
+        "document_id": "4f1ec1e4-ace9-408f-8702-3c699c4d4dd0",
         "file_name": "corpus1.txt"
     },
     "corpus2.txt": {
-        "document_id": "34ecb0f4-f5d8-446d-85e2-c9734025ac9d",
+        "document_id": "7028812a-c9d9-4e9c-a1c5-3191c88a6368",
         "file_name": "corpus2.txt"
     },
     "corpus3.txt": {
-        "document_id": "efc1584c-a1c3-4342-996c-a7f463da3458",
+        "document_id": "b39a4d14-6dcf-4757-99aa-2088102f3c06",
         "file_name": "corpus3.txt"
-    },
-    "corpus4.txt": {
-        "document_id": "6d38feb3-d480-47fe-a013-e42bf0cf1b8c",
-        "file_name": "corpus4.txt"
     }
 }

@@ -128,20 +128,26 @@ if selected == "Create Inverted Index":
         # content = pipeline.preprocess(content)
         inverted_index_data, all_chunks = inverted_index.process(files)
         
-        # Save the vocabulary in JSON format
+        save = st.button("Visualize Indexes")
+        # Create vocabulary file
+
         vocab_file_path = 'vocabulary.json'
         vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"], "doc_ids": data["doc_ids"]} for term, data in sorted(inverted_index_data.items())}
-        with open(vocab_file_path, 'w') as vocab_file:
-            json.dump(vocab_data, vocab_file, indent=4)
-        st.success(f"Vocabulary saved to {vocab_file_path}")
-
-        # Save the postings in JSON format
+        # Create postings file
         postings_file_path = 'postings.json'
         postings_data = {chunk["file_name"]: {"document_id": doc_id, "file_name": chunk["file_name"]} for doc_id, chunk in all_chunks.items()}
-        with open(postings_file_path, 'w') as postings_file:
-            json.dump(postings_data, postings_file, indent=4)
-        st.success(f"Postings saved to {postings_file_path}")
 
+        if save:
+            # Convert the inverted index to a DataFrame
+            df = pd.DataFrame(list(inverted_index_data.items()), columns=['Term', 'Documents'])
+
+            # Display the DataFrame as a table in Streamlit
+            st.table(df)
+            # Convert the inverted index to a DataFrame
+            df = pd.DataFrame(list(inverted_index.items()), columns=['Term', 'Documents'])
+
+            # Display the DataFrame as a table in Streamlit
+            st.table(df)
         # Allow the user to download the files
         st.download_button(
             label="Download Vocabulary",
