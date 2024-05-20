@@ -1,19 +1,14 @@
 import re
 import unicodedata
+from collections import defaultdict
 import uuid
-import numpy as np
+from tabulate import tabulate
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
+import json
 
-# file_path = 'Corpus.txt'
-
-# # Load Dataset
-
-# with open(file_path,'r') as file:
-#   content = file.read()
-
-#Word Tokenize
+# Word Tokenize
 def word_tokenize(text):
     words = text.split()
     words = [word for word in words]
@@ -25,36 +20,35 @@ def sentence_tokenize(text):
     sentences = [sentence.strip() for sentence in sentences]
     return sentences
 
-
 def normalize(words):
     normalized_words = []
     for word in words:
-        # Remove digits from the word
+        # Replace specific characters first
+        replacements = {"’": "h", "'": "h", "(": " ", ")":" "}  # Define replacements
+        for original, normalized in replacements.items():
+            word = word.replace(original, normalized)
+        second_replacements = {" ": "",'': ''}  # Define replacements
+        for original, normalized in second_replacements.items():
+            word = word.replace(original, normalized)
+            
+        word = re.sub(r'[^\w\s]', '', word)
         word = re.sub(r'\d', '', word)
-        # Remove commas from the word
-        word = word.replace(',', '')
         # To handle words like MoE or EPRDF and such like that... although it is noted that case folding is the best method, we were tempted to implement this.
         upper_count = sum(1 for char in word if char.isupper())
         if upper_count >= 2:
             normalized_words.append(word)
         else:
             normalized_words.append(word.lower())
-
-    replacements = {"-": "", "’": "h", "'": "h"}  # Define replacements
-    for original, normalized in replacements.items():
-        normalized_words = [word.replace(original, normalized) for word in normalized_words]
-
-    # To handle words such as Re'ee -> Rehee and also words like wal-gargaaruu -> walgargaaruu
-    normalized_words = [re.sub(r"\b'\b", "h", word) for word in normalized_words]
-
+        
     # Normalize Unicode characters
     """
     nfkd:-> "Normalization Form KD". It decomposes characters by compatibility, and then recomposes them by compatibility.
     When you see "NFKD" in the context of Unicode normalization, it's referring to one of the normalization forms defined in the Unicode standard.
     """
-    normalized_text = [unicodedata.normalize('NFKD', word).encode('ASCII', 'ignore').decode('utf-8') for word in normalized_words]
+    # normalized_text = [unicodedata.normalize('NFKD', word).encode('ASCII', 'ignore').decode('utf-8') for word in normalized_words]
 
-    return normalized_text
+    return normalized_words
+
 class Tokenizer:
     """
     Usecage:
@@ -436,69 +430,40 @@ class Pipeline:
         preprocessed_text = stemmed_tokens
         return preprocessed_text
 
-import json
-def create_inverted_index_from_files(file_paths):
+def create_inverted_index(files):
     pipeline = Pipeline()
     
     inverted_index = defaultdict(lambda: {"doc_count": 0, "term_freq": 0, "doc_ids": set()})
     all_chunks = {}
 
-    # Iterate over all specified file paths
-    for file_path in file_paths:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            document = file.read()
-            doc_id = str(uuid.uuid4())
-            preprocessed_document = pipeline.process(document)
+    # Iterate over all uploaded files
+    # Iterate over all uploaded files
+    for file in files:
+        document = file.read().decode()
+        doc_id = str(uuid.uuid4())
+        preprocessed_document = pipeline.preprocess(document)
             
-            for term in preprocessed_document:
-                if term == "":
-                    continue
-                inverted_index[term]["doc_ids"].add(doc_id)  # Use a set to avoid duplicates
-                inverted_index[term]["term_freq"] += 1  # Increment term frequency across all documents
+        for term in preprocessed_document:
+            if term == "":
+                continue
+            inverted_index[term]["doc_ids"].add(doc_id)  # Use a set to avoid duplicates
+            inverted_index[term]["term_freq"] += 1  # Increment term frequency across all documents
             
-            file_name = file_path.split('/')[-1]  # Extract the file name from the path
-            all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name}
+        file_name = file.name  # Extract the file name from the path
+        all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name}
 
     # Convert sets to lists for JSON serialization
     for term in inverted_index:
         inverted_index[term]["doc_count"] = len(inverted_index[term]["doc_ids"])
         inverted_index[term]["doc_ids"] = list(inverted_index[term]["doc_ids"])
 
-    return inverted_index, all_chunks    
-
+    return inverted_index, all_chunks
 class InvertedIndex:
     def __init__(self):
         pass
     
     def process(self, files):
-        inverted_index, doc_pointers = create_inverted_index_from_files(files)
-        
-        # Save the vocabulary in JSON format
-        vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(vocab_file_path, 'w') as vocab_file:
-            json.dump(vocab_data, vocab_file, indent=4)
-        print(f"Vocabulary saved to {vocab_file_path}")
-        
-         # Save the vocabulary in JSON format
-        vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(vocab_file_path, 'w') as vocab_file:
-            json.dump(vocab_data, vocab_file, indent=4)
-        print(f"Vocabulary saved to {vocab_file_path}")
-        
-        # Save the postings in JSON format
-        postings_file_path = 'postings.json'
-        postings_data = {term: {"doc_ids": data["doc_ids"], "term_freq": data["term_freq"]} for term, data in sorted(inverted_index.items())}
-        
-        with open(postings_file_path, 'w') as postings_file:
-            json.dump(postings_data, postings_file, indent=4)
-        print(f"Postings saved to {postings_file_path}")
-        
-
-
+        return create_inverted_index(files)
 # # Example usage
 # file_paths = [
 #     'corpus1.txt',  # Change these paths to the actual paths of your text files

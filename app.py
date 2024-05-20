@@ -39,10 +39,14 @@ if submitted and files:
         file_names.append(file.name)
     st.session_state['content'] = "\n".join(content)
     st.session_state['file_names'] = file_names
+# Add "Search" to the options
+options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search"]
+icons = ["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book", "search"]
+
 selected = option_menu(
     menu_title=None,
-    options=["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index"],
-    icons=["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book"],
+    options=options,
+    icons=icons,
     orientation="vertical",
 )
 content = st.session_state['content']
@@ -97,7 +101,12 @@ if selected == "Stemming":
             'Stemmed Words': stemmed_words
         })
         st.dataframe(stemmed_df)
-
+        st.download_button(
+            label="Download Stemmed Text",
+            data=stemmed_df.to_json(index=False),
+            file_name="stemmed_text.json",
+            mime="application/json",
+        )
 if selected == "Text Statistics":
     if not content:
         st.warning("Please upload files and click the submit button to continue.")
@@ -111,45 +120,24 @@ if selected == "Text Statistics":
         # Plot the rank-frequency graph
         stats.freq_rank_graph(word_freq)
 
-def create_inverted_index_from_content(contents, file_names):
-    inverted_index = defaultdict(lambda: {"doc_count": 0, "term_freq": 0, "doc_ids": set()})
-    all_chunks = {}
-
-    for content, file_name in zip(contents, file_names):
-        doc_id = str(uuid.uuid4())
-        preprocessed_document = pipeline.preprocess(content)
-        
-        for term in preprocessed_document:
-            if term == "":
-                continue
-            inverted_index[term]["doc_ids"].add(doc_id)
-            inverted_index[term]["term_freq"] += 1
-        
-        all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name}
-
-    for term in inverted_index:
-        inverted_index[term]["doc_count"] = len(inverted_index[term]["doc_ids"])
-        inverted_index[term]["doc_ids"] = list(inverted_index[term]["doc_ids"])
-
-    return inverted_index, all_chunks
-
 if selected == "Create Inverted Index":
     if not content:
         st.warning("Please upload files and click the submit button to continue.")
     else:
         # Create the inverted index from the uploaded files
-        inverted_index_data, all_chunks = create_inverted_index_from_content(content.split('\n'), file_names)
+        # content = pipeline.preprocess(content)
+        inverted_index_data, all_chunks = inverted_index.process(files)
         
         # Save the vocabulary in JSON format
         vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: data for term, data in sorted(inverted_index_data.items())}
+        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"], "doc_ids": data["doc_ids"]} for term, data in sorted(inverted_index_data.items())}
         with open(vocab_file_path, 'w') as vocab_file:
             json.dump(vocab_data, vocab_file, indent=4)
         st.success(f"Vocabulary saved to {vocab_file_path}")
 
         # Save the postings in JSON format
         postings_file_path = 'postings.json'
-        postings_data = {doc_id: data for doc_id, data in all_chunks.items()}
+        postings_data = {chunk["file_name"]: {"document_id": doc_id, "file_name": chunk["file_name"]} for doc_id, chunk in all_chunks.items()}
         with open(postings_file_path, 'w') as postings_file:
             json.dump(postings_data, postings_file, indent=4)
         st.success(f"Postings saved to {postings_file_path}")
@@ -167,3 +155,40 @@ if selected == "Create Inverted Index":
             file_name="postings.json",
             mime="application/json",
         )
+
+if selected == "Search":
+    # Load the inverted index and postings from the JSON files
+    with open('vocabulary.json', 'r') as vocab_file:
+        inverted_index_data = json.load(vocab_file)
+    with open('postings.json', 'r') as postings_file:
+        postings_data = json.load(postings_file)
+
+    # Get the search query from the user
+    query = st.text_input("Enter your search query:")
+
+    if st.button('Search'):
+        # Tokenize the search query
+        query_terms = tokenizer.tokenize(query)
+
+        # Get the list of document IDs for each term in the query
+        doc_ids_per_term = [set(inverted_index_data[term]['doc_ids']) for term in query_terms if term in inverted_index_data]
+
+        if not doc_ids_per_term:
+            st.write("No documents match your search query.")
+        else:
+            # Find the intersection of the document ID lists
+            common_doc_ids = set.intersection(*doc_ids_per_term)
+
+            st.write(f"Common document IDs: {common_doc_ids}")
+            st.write(f"Postings data: {postings_data}")
+
+            # Retrieve the file names of the matching documents
+            # Create a dictionary that maps document IDs to file names
+            doc_id_to_file_name = {v['document_id']: k for k, v in postings_data.items()}
+
+            # Retrieve the file names of the matching documents
+            matching_files = [doc_id_to_file_name[str(doc_id)] for doc_id in common_doc_ids if str(doc_id) in doc_id_to_file_name]
+
+            st.write("Matching documents:")
+            for file_name in matching_files:
+                st.write(file_name)
