@@ -139,15 +139,14 @@ if selected == "Create Inverted Index":
 
         if save:
             # Convert the inverted index to a DataFrame
-            df = pd.DataFrame(list(inverted_index_data.items()), columns=['Term', 'Documents'])
-
+            df = pd.DataFrame([(term, data["doc_count"], data["term_freq"], data["doc_ids"]) for term, data in sorted(inverted_index_data.items())], columns=['Term', 'Document Count', 'Term Frequency', 'Document IDs'])
             # Display the DataFrame as a table in Streamlit
             st.table(df)
             # Convert the inverted index to a DataFrame
-            df = pd.DataFrame(list(inverted_index.items()), columns=['Term', 'Documents'])
+            # df = pd.DataFrame(list(inverted_index.items()), columns=['Term', 'Documents'])
 
-            # Display the DataFrame as a table in Streamlit
-            st.table(df)
+            # # Display the DataFrame as a table in Streamlit
+            # st.table(df)
         # Allow the user to download the files
         st.download_button(
             label="Download Vocabulary",
