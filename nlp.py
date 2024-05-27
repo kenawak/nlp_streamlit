@@ -1,12 +1,10 @@
 import re
-import unicodedata
 from collections import defaultdict
 import uuid
-from tabulate import tabulate
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-import json
+from sklearn.feature_extraction.text import CountVectorizer
 
 # Word Tokenize
 def word_tokenize(text):
@@ -139,7 +137,6 @@ class Stemmer:
                 return stemmed_word
         # If no rule matches, return the original word
         return word
-
     
     def measure(self, word):
         # Calculate the number of vowel-consonant sequences in the word
@@ -216,17 +213,8 @@ class Stemmer:
                     return word[:-len(suffix)]
         return None
     
-    # def has_double_vowel(self, word):
-    #         vowels = "aeiou"
-    #         for i in range(len(word) - 1):
-    #             if word[i] in vowels and word[i+1] in vowels:
-    #                 return True
-    #         return False
 
     def rule_cluster_7(self, word):
-        # Rule cluster 7: Rules that conflate words formed by duplication of the first syllabus
-        # if len(word) <= 3:
-        #     return word
         if not word.startswith(("a", "e", "i", "o", "u")):
             if word[:2] == word[3:5]:
                 return word[3:]
@@ -316,7 +304,6 @@ class TextStatistics:
         # Display the DataFrame in Streamlit
         st.dataframe(df)
 
-    # Continue with the rest of your code...
         # Bar chart for word frequencies
         words, frequencies = zip(*[[pair[0], pair[1]] for pair in words])
         df = pd.DataFrame({'words': words, 'frequencies': frequencies})
@@ -429,28 +416,40 @@ class Pipeline:
         
         preprocessed_text = stemmed_tokens
         return preprocessed_text
-
+        
+def calculate_term_frequency(document):
+    # Calculate the term frequency of each term in the document
+    term_frequency = {}
+    for term in document:
+        term_frequency[term] = term_frequency.get(term, 0) + 1
+    return term_frequency
 def create_inverted_index(files):
     pipeline = Pipeline()
     
-    inverted_index = defaultdict(lambda: {"doc_count": 0, "term_freq": 0, "doc_ids": set()})
+    inverted_index = defaultdict(lambda: {"doc_count": 0, "term_freq": 0, "doc_ids": set(), "term_freq_doc": {}})
     all_chunks = {}
 
-    # Iterate over all uploaded files
+    document_vectors = []
+
     # Iterate over all uploaded files
     for file in files:
         document = file.read().decode()
         doc_id = str(uuid.uuid4())
         preprocessed_document = pipeline.preprocess(document)
-            
+        term_frequency = calculate_term_frequency(preprocessed_document)
+        
+        # Update inverted index and document vectors
         for term in preprocessed_document:
             if term == "":
                 continue
             inverted_index[term]["doc_ids"].add(doc_id)  # Use a set to avoid duplicates
             inverted_index[term]["term_freq"] += 1  # Increment term frequency across all documents
             
+            # Update term frequency for this document
+            inverted_index[term]["term_freq_doc"][doc_id] = term_frequency.get(term, 0)
+        
         file_name = file.name  # Extract the file name from the path
-        all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name}
+        all_chunks[doc_id] = {"document_id": doc_id, "file_name": file_name, "content": document}
 
     # Convert sets to lists for JSON serialization
     for term in inverted_index:
@@ -458,19 +457,52 @@ def create_inverted_index(files):
         inverted_index[term]["doc_ids"] = list(inverted_index[term]["doc_ids"])
 
     return inverted_index, all_chunks
+
+def calculate_document_vectors(documents):
+    pipeline = Pipeline()
+    preprocessed_docs = [' '.join(pipeline.preprocess(doc.get("content", ""))) for doc in documents.values()]
+    
+    vectorizer = CountVectorizer()
+    document_vectors = vectorizer.fit_transform(preprocessed_docs)
+    
+    return document_vectors, vectorizer
+def manual_cosine_similarity(doc_vector, query_vector):
+    dot_product = sum(a * b for a, b in zip(doc_vector, query_vector))
+    magnitude_doc = sum(a * a for a in doc_vector) ** 0.5
+    magnitude_query = sum(b * b for b in query_vector) ** 0.5
+    if magnitude_doc == 0 or magnitude_query == 0:
+        return 0.0
+    return dot_product / (magnitude_doc * magnitude_query)
+
+def retrieve_documents(query, documents, vectorizer, document_vectors):
+    pipeline = Pipeline()
+    preprocessed_query = ' '.join(pipeline.preprocess(query))
+    query_vector = vectorizer.transform([preprocessed_query]).toarray()[0]  # Convert to dense array and ensure it's 1D
+
+    similarity_scores = []
+    for doc_id, doc_vector in zip(documents.keys(), document_vectors):
+        doc_vector = doc_vector.toarray()[0]  # Convert each document vector to a dense 1D array
+        similarity = manual_cosine_similarity(doc_vector, query_vector)
+        similarity_scores.append((doc_id, similarity))  # Store tuples of (doc_id, similarity)
+
+    sorted_similarity_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
+    sorted_documents = [doc_id for doc_id, _ in sorted_similarity_scores]
+    return sorted_documents, sorted_similarity_scores
+
+def display_similarity_scores(sorted_similarity_scores, document_names):
+    print("Cosine Similarity Scores:")
+    for doc_id, similarity in sorted_similarity_scores:
+        print(f"{document_names[doc_id]}: {similarity:.4f}")
+
 class InvertedIndex:
     def __init__(self):
         pass
     
     def process(self, files):
         return create_inverted_index(files)
-# # Example usage
-# file_paths = [
-#     'corpus1.txt',  # Change these paths to the actual paths of your text files
-#     'corpus2.txt',
-#     'corpus3.txt',
-#     'corpus4.txt',        
-# ]
-
-# indexer = InvertedIndex()
-# indexer.process(file_paths)
+    def search(self, query, doc_pointers):
+        documents = doc_pointers
+        document_vectors, vectorizer = calculate_document_vectors(doc_pointers)
+        sorted_doc_ids, sorted_similarity_scores = retrieve_documents(query, documents, vectorizer, document_vectors)
+        sorted_documents = [documents[doc_id]["file_name"] for doc_id in sorted_doc_ids]
+        return sorted_documents, sorted_similarity_scores
