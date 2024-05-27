@@ -6,7 +6,7 @@ import pandas as pd
 from streamlit_option_menu import option_menu
 import json
 import streamlit as st
-import streamlit_shadcn_ui as ui
+# import streamlit_shadcn_ui as ui
 
 # Create an instance of the Pipeline class
 pipeline = Pipeline()
