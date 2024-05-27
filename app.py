@@ -5,6 +5,8 @@ from nlp import Pipeline, Tokenizer, StopwordRemoval, Stemmer, TextStatistics, I
 import pandas as pd
 from streamlit_option_menu import option_menu
 import json
+import streamlit as st
+import streamlit_shadcn_ui as ui
 
 # Create an instance of the Pipeline class
 pipeline = Pipeline()
@@ -40,160 +42,181 @@ if submitted and files:
     st.session_state['content'] = "\n".join(content)
     st.session_state['file_names'] = file_names
 # Add "Search" to the options
-options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search"]
-icons = ["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book", "search"]
+options = ["Document Search", "Pipeline"]
+icons = ["search", "book"]
 
 selected = option_menu(
     menu_title=None,
     options=options,
     icons=icons,
-    orientation="vertical",
+    orientation="horizontal",
 )
-content = st.session_state['content']
-file_names = st.session_state['file_names']
-
-if selected == "Tokenize":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        tokenized_text = tokenizer.tokenize(content)
-        st.write(f"Number of tokens: {len(tokenized_text)}")
-        data = {'word': [], 'characters': []}
-        for word in tokenized_text:
-            data['word'].append(word)
-            data['characters'].append(len(word))
-        df = pd.DataFrame(data)
-        st.dataframe(df)
-
-        st.download_button(
-            label="Download Tokenized Text",
-            data=df.to_json(index=False),
-            file_name="tokenized_text.json",
-            mime="application/json",
-        )
-
-if selected == "Remove Stopwords":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        removed_stopwords = stopword_remover.get_stopwords(tokenizer.tokenize(content))
-        
-        stopwords_df = pd.DataFrame(removed_stopwords, columns=['Stopwords', 'Frequency'])
-        st.dataframe(stopwords_df)
-        graph = stopword_remover.get_graph(tokenizer.tokenize(content))
-        st.download_button(
-            label="Download Removed Stopwords",
-            data=stopwords_df.to_json(index=False).encode(),
-            file_name="removed_stopwords.json",
-            mime="application/json",
-        )
-
-if selected == "Stemming":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        tokens = tokenizer.tokenize(content)
-        tokens_without_stopwords = stopword_remover.remove_stopwords(tokens)
-        stemmed_words = [stemmer.stem(token) if token in tokens_without_stopwords else '' for token in tokens]
-
-        stemmed_df = pd.DataFrame({
-            'Original Words': tokens,
-            'Stemmed Words': stemmed_words
-        })
-        st.dataframe(stemmed_df)
-        st.download_button(
-            label="Download Stemmed Text",
-            data=stemmed_df.to_json(index=False),
-            file_name="stemmed_text.json",
-            mime="application/json",
-        )
-if selected == "Text Statistics":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        # Calculate the frequency of each word in the text
-        word_freq = stats.calc_frequency(tokenizer.tokenize(content))
-        stats.tabular_format(word_freq)
-
-        word_freq = stats.rank_words(word_freq)
-
-        # Plot the rank-frequency graph
-        stats.freq_rank_graph(word_freq)
-
-if selected == "Create Inverted Index":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        # Create the inverted index from the uploaded files
-        # content = pipeline.preprocess(content)
-        inverted_index_data, all_chunks = inverted_index.process(files)
-        
-        save = st.button("Visualize Indexes")
-        # Create vocabulary file
-
-        vocab_file_path = 'vocabulary.json'
-        vocab_data = {term: {"doc_count": data["doc_count"], "term_freq": data["term_freq"], "doc_ids": data["doc_ids"]} for term, data in sorted(inverted_index_data.items())}
-        # Create postings file
-        postings_file_path = 'postings.json'
-        postings_data = {chunk["file_name"]: {"document_id": doc_id, "file_name": chunk["file_name"]} for doc_id, chunk in all_chunks.items()}
-
-        if save:
-            # Convert the inverted index to a DataFrame
-            df = pd.DataFrame([(term, data["doc_count"], data["term_freq"], data["doc_ids"]) for term, data in sorted(inverted_index_data.items())], columns=['Term', 'Document Count', 'Term Frequency', 'Document IDs'])
-            # Display the DataFrame as a table in Streamlit
-            st.table(df)
-            # Convert the inverted index to a DataFrame
-            # df = pd.DataFrame(list(inverted_index.items()), columns=['Term', 'Documents'])
-
-            # # Display the DataFrame as a table in Streamlit
-            # st.table(df)
-        # Allow the user to download the files
-        st.download_button(
-            label="Download Vocabulary",
-            data=json.dumps(vocab_data),
-            file_name="vocabulary.json",
-            mime="application/json",
-        )
-        st.download_button(
-            label="Download Postings",
-            data=json.dumps(postings_data),
-            file_name="postings.json",
-            mime="application/json",
-        )
-
-if selected == "Search":
+if selected == "Document Search":
     # Load the inverted index and postings from the JSON files
-    with open('vocabulary.json', 'r') as vocab_file:
-        inverted_index_data = json.load(vocab_file)
-    with open('postings.json', 'r') as postings_file:
-        postings_data = json.load(postings_file)
+    # with open('vocabulary.json', 'r') as vocab_file:
+    #     inverted_index_data = json.load(vocab_file)
+    # with open('postings.json', 'r') as postings_file:
+    #     postings_data = json.load(postings_file)
 
     # Get the search query from the user
     query = st.text_input("Enter your search query:")
-
+    indexer  = InvertedIndex()
+    inverted_index, doc_pointers = indexer.process(files)
+    
     if st.button('Search'):
-        # Tokenize the search query
-        query_terms = tokenizer.tokenize(query)
-
-        # Get the list of document IDs for each term in the query
-        doc_ids_per_term = [set(inverted_index_data[term]['doc_ids']) for term in query_terms if term in inverted_index_data]
-
-        if not doc_ids_per_term:
+        sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
+        
+        if not sorted_doc_names:
             st.write("No documents match your search query.")
         else:
-            # Find the intersection of the document ID lists
-            common_doc_ids = set.intersection(*doc_ids_per_term)
-
-            st.write(f"Common document IDs: {common_doc_ids}")
-            st.write(f"Postings data: {postings_data}")
-
-            # Retrieve the file names of the matching documents
-            # Create a dictionary that maps document IDs to file names
-            doc_id_to_file_name = {v['document_id']: k for k, v in postings_data.items()}
-
-            # Retrieve the file names of the matching documents
-            matching_files = [doc_id_to_file_name[str(doc_id)] for doc_id in common_doc_ids if str(doc_id) in doc_id_to_file_name]
-
             st.write("Matching documents:")
-            for file_name in matching_files:
-                st.write(file_name)
+            for rank, doc_name in enumerate(sorted_doc_names):
+                st.write(rank+1, doc_name)
+            st.session_state['sorted_scores'] = sorted_scores  # Store the similarity scores in a session variable
+            
+    if st.button('Show Value'):
+        sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
+        if 'sorted_scores' in st.session_state:
+            st.write("Cosine Similarity of Matching Documents:")
+            for rank, (doc_name, score) in enumerate(zip(sorted_doc_names, st.session_state['sorted_scores'])):
+                st.write(rank+1, f"{doc_name}: {score[1]}")
+        else:
+            st.write("No similarity scores available. Please perform a search first.")
+if selected == "Pipeline":
+    options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search"]
+    icons = ["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book", "search"]
+
+    selected = option_menu(
+        menu_title=None,
+        options=options,
+        icons=icons,
+        orientation="vertical",
+    )
+    content = st.session_state['content']
+    file_names = st.session_state['file_names']
+
+    if selected == "Tokenize":
+        if not content:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            tokenized_text = tokenizer.tokenize(content)
+            st.write(f"Number of tokens: {len(tokenized_text)}")
+            data = {'word': [], 'characters': []}
+            for word in tokenized_text:
+                data['word'].append(word)
+                data['characters'].append(len(word))
+            df = pd.DataFrame(data)
+            st.dataframe(df)
+
+            st.download_button(
+                label="Download Tokenized Text",
+                data=df.to_json(index=False),
+                file_name="tokenized_text.json",
+                mime="application/json",
+            )
+
+    if selected == "Remove Stopwords":
+        if not content:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            removed_stopwords = stopword_remover.get_stopwords(tokenizer.tokenize(content))
+            
+            stopwords_df = pd.DataFrame(removed_stopwords, columns=['Stopwords', 'Frequency'])
+            st.dataframe(stopwords_df)
+            graph = stopword_remover.get_graph(tokenizer.tokenize(content))
+            st.download_button(
+                label="Download Removed Stopwords",
+                data=stopwords_df.to_json(index=False).encode(),
+                file_name="removed_stopwords.json",
+                mime="application/json",
+            )
+
+    if selected == "Stemming":
+        if not content:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            tokens = tokenizer.tokenize(content)
+            tokens_without_stopwords = stopword_remover.remove_stopwords(tokens)
+            stemmed_words = [stemmer.stem(token) if token in tokens_without_stopwords else '' for token in tokens]
+
+            stemmed_df = pd.DataFrame({
+                'Original Words': tokens,
+                'Stemmed Words': stemmed_words
+            })
+            st.dataframe(stemmed_df)
+            st.download_button(
+                label="Download Stemmed Text",
+                data=stemmed_df.to_json(index=False),
+                file_name="stemmed_text.json",
+                mime="application/json",
+            )
+    if selected == "Text Statistics":
+        if not content:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            # Calculate the frequency of each word in the text
+            word_freq = stats.calc_frequency(tokenizer.tokenize(content))
+            stats.tabular_format(word_freq)
+
+            word_freq = stats.rank_words(word_freq)
+
+            # Plot the rank-frequency graph
+            stats.freq_rank_graph(word_freq)
+    if selected == "Create Inverted Index":
+        if not files:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            inverted_index = InvertedIndex()
+            inverted_index_data, all_chunks = inverted_index.process(files)
+            
+            save = st.button("Visualize Indexes")
+
+            if save:
+                # Convert the inverted index to a DataFrame
+                df = pd.DataFrame([(term, data["doc_count"], data["term_freq"], data["doc_ids"]) for term, data in sorted(inverted_index_data.items())], columns=['Term', 'Document Count', 'Term Frequency', 'Document IDs'])
+                # Display the DataFrame as a table in Streamlit
+                st.table(df)
+            
+            # Allow the user to download the files
+            st.download_button(
+                label="Download Vocabulary",
+                data=json.dumps(inverted_index_data),
+                file_name="vocabulary.json",
+                mime="application/json",
+            )
+            st.download_button(
+                label="Download Postings",
+                data=json.dumps(all_chunks),
+                file_name="postings.json",
+                mime="application/json",
+            )
+    if selected == "Search":
+        # with open('vocabulary.json', 'r') as vocab_file:
+        #     inverted_index_data = json.load(vocab_file)
+        # with open('postings.json', 'r') as postings_file:
+        #     postings_data = json.load(postings_file)
+
+        # Get the search query from the user
+        query = st.text_input("Enter your search query:")
+        indexer  = InvertedIndex()
+        inverted_index, doc_pointers = indexer.process(files)
+
+        if st.button('Search'):
+            sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
+            
+            if not sorted_doc_names:
+                st.write("No documents match your search query.")
+            else:
+                st.write("Matching documents:")
+                for rank, doc_name in enumerate(sorted_doc_names):
+                    st.write(rank+1, doc_name)
+                st.session_state['sorted_scores'] = sorted_scores  # Store the similarity scores in a session variable
+                
+        if st.button('Show Value'):
+            sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
+            if 'sorted_scores' in st.session_state:
+                st.write("Cosine Similarity of Matching Documents:")
+                for rank, (doc_name, score) in enumerate(zip(sorted_doc_names, st.session_state['sorted_scores'])):
+                    st.write(rank+1, f"{doc_name}: {score[1]}")
+            else:
+                st.write("No similarity scores available. Please perform a search first.")    
