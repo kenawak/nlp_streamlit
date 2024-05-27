@@ -44,7 +44,7 @@ if submitted and files:
 options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search"]
 icons = ["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book", "search"]
 
-    selected = option_menu(
+selected = option_menu(
         menu_title=None,
         options=options,
         icons=icons,
