@@ -44,34 +44,34 @@ if submitted and files:
 options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search"]
 icons = ["pencil-fill", "x-circle-fill", "scissors", "bar-chart-fill", "book", "search"]
 
-selected = option_menu(
+    selected = option_menu(
         menu_title=None,
         options=options,
         icons=icons,
         orientation="vertical",
     )
-content = st.session_state['content']
-file_names = st.session_state['file_names']
+    content = st.session_state['content']
+    file_names = st.session_state['file_names']
 
-if selected == "Tokenize":
-    if not content:
-        st.warning("Please upload files and click the submit button to continue.")
-    else:
-        tokenized_text = tokenizer.tokenize(content)
-        st.write(f"Number of tokens: {len(tokenized_text)}")
-        data = {'word': [], 'characters': []}
-        for word in tokenized_text:
-            data['word'].append(word)
-            data['characters'].append(len(word))
-        df = pd.DataFrame(data)
-        st.dataframe(df)
+    if selected == "Tokenize":
+        if not content:
+            st.warning("Please upload files and click the submit button to continue.")
+        else:
+            tokenized_text = tokenizer.tokenize(content)
+            st.write(f"Number of tokens: {len(tokenized_text)}")
+            data = {'word': [], 'characters': []}
+            for word in tokenized_text:
+                data['word'].append(word)
+                data['characters'].append(len(word))
+            df = pd.DataFrame(data)
+            st.dataframe(df)
 
-        st.download_button(
-        label="Download Tokenized Text",
-        data=df.to_json(index=False),
-        file_name="tokenized_text.json",
-        mime="application/json",
-        )
+            st.download_button(
+                label="Download Tokenized Text",
+                data=df.to_json(index=False),
+                file_name="tokenized_text.json",
+                mime="application/json",
+            )
 
     if selected == "Remove Stopwords":
         if not content:
@@ -116,7 +116,7 @@ if selected == "Text Statistics":
         word_freq = stats.calc_frequency(tokenizer.tokenize(content))
         stats.tabular_format(word_freq)
 
-        word_freq = stats.rank_words(word_freq)
+            word_freq = stats.rank_words(word_freq)
 
         # Plot the rank-frequency graph
         stats.freq_rank_graph(word_freq)
