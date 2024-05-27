@@ -116,7 +116,7 @@ if selected == "Text Statistics":
         word_freq = stats.calc_frequency(tokenizer.tokenize(content))
         stats.tabular_format(word_freq)
 
-            word_freq = stats.rank_words(word_freq)
+        word_freq = stats.rank_words(word_freq)
 
         # Plot the rank-frequency graph
         stats.freq_rank_graph(word_freq)
