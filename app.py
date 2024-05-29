@@ -53,30 +53,33 @@ selected = option_menu(
 )
 
 if selected == "Document Search":
-    query = st.text_input("Enter your search query:")
-    indexer = InvertedIndex()
     if files:
+        query = st.text_input("Enter your search query:")
+        indexer = InvertedIndex()
         inverted_index, doc_pointers = indexer.process(files)
     
-    if st.button('Search'):
-        sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
-        
-        if not sorted_doc_names:
-            st.write("No documents match your search query.")
-        else:
-            st.write("Matching documents:")
-            for rank, doc_name in enumerate(sorted_doc_names):
-                st.write(rank+1, doc_name)
-            st.session_state['sorted_scores'] = sorted_scores  # Store the similarity scores in a session variable
+        if st.button('Search'):
+            sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
             
-    if st.button('Show Value'):
-        sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
-        if 'sorted_scores' in st.session_state:
-            st.write("Cosine Similarity of Matching Documents:")
-            for rank, (doc_name, score) in enumerate(zip(sorted_doc_names, st.session_state['sorted_scores'])):
-                st.write(rank+1, f"{doc_name}: {score[1]}")
-        else:
-            st.write("No similarity scores available. Please perform a search first.")
+            if not sorted_doc_names:
+                st.write("No documents match your search query.")
+            else:
+                st.write("Matching documents:")
+                for rank, doc_name in enumerate(sorted_doc_names):
+                    st.write(rank+1, doc_name)
+                st.session_state['sorted_scores'] = sorted_scores  # Store the similarity scores in a session variable
+                
+        if st.button('Show Value'):
+            sorted_doc_names, sorted_scores = indexer.search(query, doc_pointers)
+            if 'sorted_scores' in st.session_state:
+                st.write("Cosine Similarity of Matching Documents:")
+                for rank, (doc_name, score) in enumerate(zip(sorted_doc_names, st.session_state['sorted_scores'])):
+                    st.write(rank+1, f"{doc_name}: {score[1]}")
+            else:
+                st.write("No similarity scores available. Please perform a search first.")
+    else:
+        st.warning("Please upload files and click the submit button to continue.")
+
 
 if selected == "Pipeline":
     options = ["Tokenize", "Remove Stopwords", "Stemming", "Text Statistics", "Create Inverted Index", "Search", "Document Analytics"]
@@ -152,13 +155,21 @@ if selected == "Pipeline":
             st.warning("Please upload files and click the submit button to continue.")
         else:
             # Calculate the frequency of each word in the text
+        # Create a DataFrame
+            
             word_freq = stats.calc_frequency(tokenizer.tokenize(content))
+            df = pd.DataFrame(word_freq, columns=['Word', 'Frequency'])
+            # Display the DataFrame in Streamlit
+            st.dataframe(df)
             stats.tabular_format(word_freq)
 
             word_freq = stats.rank_words(word_freq)
-
+            if st.button('Sorted Graph'):
+                # rank_words = stats.rank_words(word_freq)
+                stats.tabular_format(word_freq)
             # Plot the rank-frequency graph
             stats.freq_rank_graph(word_freq)
+
 
     if selected == "Create Inverted Index":
         if not files:
